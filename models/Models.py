@@ -7,4 +7,4 @@ class Models(Base):
     name = Column(String(100), unique=False)
     description = Column(String(500))
     model_type = Column(String(100))
-    model_subtype = Column(String(100))
+    # model_subtype = Column(String(100))

@@ -1,5 +1,5 @@
 from typing import Union
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from handlers import upload
@@ -16,6 +16,7 @@ from sklearn.linear_model import LinearRegression
 import pandas as pd
 import numpy as np
 from fastapi import Request
+import joblib
 app = FastAPI(default_response_class=JSONResponse)
 app.add_middleware(
     CORSMiddleware,
@@ -41,22 +42,22 @@ except sqlite3.Error as e:
 
 
 @app.post("/upload-file")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), model: str= Form(...)):
     contents = await file.read()
-
-    with open(file.filename, "wb") as f:
+    print(model)
+    with open(model, "wb") as f:
         f.write(contents)
     return {"filename": file.filename, "file_size": len(contents)}
 
 
-@app.get("/train")
-async def train():
+@app.get("/train/{model_id}")
+async def train(model_id: str):
 
-    df = pd.read_csv('Salary_Data.csv')
+    df = pd.read_csv(model_id + ".csv")
 
     # Extract input features (X) and target variable (y) from the dataframe
-    X = df['YearsExperience'].values.reshape(-1, 1)  # Reshape X to a 2D array
-    y = df['Salary'].values
+    X = df.iloc[:, :-1]  # Extract all columns except the last one as input features
+    y = df.iloc[:, -1]  # Extract the last column as the target variable
 
     # Create a linear regression model
     model = LinearRegression()
@@ -70,6 +71,8 @@ async def train():
     print("Predict: {}", model.predict([[10]]))
     print("Learned Weight: {:.4f}".format(learned_W))
     print("Learned Bias: {:.4f}".format(learned_b))
+
+    joblib.dump(model, model_id + ".pkl")
     return {}
 
 @app.get("/startup")
@@ -94,7 +97,7 @@ async def get_users(skip: int = 0, limit: int = 10):
 async def create_model(request: Request):
     body = await request.json()
 
-    new_model = Models.Models(id= str(generator.generateUuid()), name="Hello", description="None", model_type="linear-regression")
+    new_model = Models.Models(id= str(generator.generateUuid()), name=body["name"], description=body["description"], model_type=body["model_type"])
     db.add(new_model)
     db.commit()
     return {"body": body}
@@ -102,3 +105,21 @@ async def create_model(request: Request):
 @app.get("/get-models")
 async def get_models():
     return {"result": db.query(Models.Models).all()}
+
+@app.delete("/delete-model")
+async def delete_model(request: Request):
+    body = await request.json()
+    db.delete(db.query(Models.Models).filter(Models.Models.id == body["id"]).first())
+    db.commit()
+    db.flush()  # Flush the session to ensure changes are persisted
+
+    return {"message": "deleted"}
+
+@app.get("/predict/{model_id}/{value}")
+def predict(model_id: str, value: float):
+    print(model_id)
+    model = joblib.load(model_id + ".pkl")
+    result = model.predict([[value]])
+
+    print(type(result))
+    return {"result":  str(result)}
