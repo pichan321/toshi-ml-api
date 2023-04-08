@@ -2,7 +2,11 @@ from typing import Union
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from handlers import upload
+
+from handlers.upload import router as upload_router
+from handlers.model import router as model_router
+
+
 import sqlite3
 from models.database import Base
 from models import Users, Models
@@ -25,30 +29,11 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all HTTP methods
     allow_headers=["*"],  # Allow all HTTP headers
 )
-SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"
-# SQLALCHEMY_DATABASE_URL = "postgresql://user:password@postgresserver/db"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-db = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-db = db()
-conn = None
-try:
-    conn = sqlite3.connect('mydb.sqlite')  # Replace with your desired SQLite database file name
-
-except sqlite3.Error as e:
-    print(e)
 
 
-@app.post("/upload-file")
-async def upload_file(file: UploadFile = File(...), model: str= Form(...)):
-    contents = await file.read()
-    print(model)
-    with open(model, "wb") as f:
-        f.write(contents)
-    return {"filename": file.filename, "file_size": len(contents)}
 
+app.include_router(upload_router)
+app.include_router(model_router)
 
 @app.get("/train/{model_id}")
 async def train(model_id: str):
@@ -75,9 +60,6 @@ async def train(model_id: str):
     joblib.dump(model, model_id + ".pkl")
     return {}
 
-@app.get("/startup")
-async def startup_event():
-    Base.metadata.create_all(bind=engine)
 
 @app.post("/users")
 async def create_user():
@@ -93,33 +75,6 @@ async def get_users(skip: int = 0, limit: int = 10):
     users = db.query(Users.Users).all()
     return users
 
-@app.post("/create-model")
-async def create_model(request: Request):
-    body = await request.json()
 
-    new_model = Models.Models(id= str(generator.generateUuid()), name=body["name"], description=body["description"], model_type=body["model_type"])
-    db.add(new_model)
-    db.commit()
-    return {"body": body}
 
-@app.get("/get-models")
-async def get_models():
-    return {"result": db.query(Models.Models).all()}
 
-@app.delete("/delete-model")
-async def delete_model(request: Request):
-    body = await request.json()
-    db.delete(db.query(Models.Models).filter(Models.Models.id == body["id"]).first())
-    db.commit()
-    db.flush()  # Flush the session to ensure changes are persisted
-
-    return {"message": "deleted"}
-
-@app.get("/predict/{model_id}/{value}")
-def predict(model_id: str, value: float):
-    print(model_id)
-    model = joblib.load(model_id + ".pkl")
-    result = model.predict([[value]])
-
-    print(type(result))
-    return {"result":  str(result)}
