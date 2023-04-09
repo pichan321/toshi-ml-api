@@ -26,18 +26,21 @@ async def create_model(request: Request):
     db = connection.get_database()
     body = await request.json()
 
-    new_model = Models.Models(id= str(generator.generateUuid()), name=body["name"], description=body["description"], model_type=body["model_type"])
+    new_model = Models.Models(id= str(generator.generateUuid()), name=body["name"], description=body["description"], model_type=body["model_type"], model_subtype=body["model_subtype"])
     db.add(new_model)
     db.commit()
     db.close()
     return {"body": body}
 
-@router.get("/get-models")
-async def get_models():
+@router.get("/get-models/{type}/{subtype}")
+async def get_models(type: str, subtype: str):
+
     db = connection.get_database()
-    result = db.query(Models.Models).all()
+    results = db.query(Models.Models).filter(Models.Models.model_type == type, Models.Models.model_subtype == subtype).all()
     db.close()
-    return {"result": result}
+
+
+    return {"result": results}
 
 @router.delete("/delete-model")
 async def delete_model(request: Request):
