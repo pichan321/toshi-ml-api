@@ -1,5 +1,5 @@
 from typing import Union
-from fastapi import FastAPI, File, UploadFile, Form, APIRouter
+from fastapi import FastAPI, File, UploadFile, Form, APIRouter, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from handlers.upload import router
@@ -18,6 +18,8 @@ import numpy as np
 from fastapi import Request
 import joblib
 from database import connection
+
+from sklearn.preprocessing import OneHotEncoder
 
 router = APIRouter()
 
@@ -52,14 +54,36 @@ async def delete_model(request: Request):
     db.close()
     return {"message": "deleted"}
 
-@router.get("/predict/{model_id}/{value}")
-def predict(model_id: str, value: float):
+@router.post("/predict/{model_id}")
+async def predict(model_id: str, request: Request):
+
+    body = await request.json()
     db = connection.get_database()
     model = joblib.load(model_id + ".pkl")
-    result = model.predict([[value]])
+    # result = model.predict([[value, value, value, value, value, value, value, value, value, value, value]])
+    print(body["values"])
+    print(body["encoded_columns"])
+    data = {}
+    for column in body["encoded_columns"]:
+        data[column] = body["values"][column]
+    new_data = pd.DataFrame(data)
+    new_new = new_data
+    # Perform one-hot encoding on the new data within the DataFrame
+    # categorical_features = ['sex', "smoker", "region"]  # List of categorical feature column names
+    # encoder = OneHotEncoder()
+    # X_encoded = encoder.fit_transform(new_data[categorical_features])
+    # X_encoded_df = pd.DataFrame(X_encoded.toarray(), columns=encoder.get_feature_names_out(categorical_features))
+    # new_data = pd.concat([new_data.drop(columns=categorical_features), X_encoded_df], axis=1)
 
+
+    # X_encoded = encoder.fit_transform(X[categorical_features])
+    # X_encoded_df = pd.DataFrame(X_encoded.toarray(), columns=encoder.get_feature_names_out(categorical_features))
+    # X = pd.concat([X.drop(columns=categorical_features), X_encoded_df], axis=1)
+    # Make predictions on the new data
+    X_new = new_data  # Assuming 'X_new' is the feature matrix of the new data
+    y_pred = model.predict(new_new)  # Predict using the trained model
     db.close()
-    return {"result":  str(result)}
+    return {"result":  str(y_pred)}
 
 @router.get("/startup")
 async def startup_event():
