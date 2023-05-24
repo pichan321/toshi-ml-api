@@ -1,25 +1,7 @@
 from typing import Union
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, File, UploadFile, Form, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-
-
-
-
-import sqlite3
-from models.database import Base
-from models import Users, Models
-from utils import generator
-
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-
-from sklearn.linear_model import LinearRegression
-import pandas as pd
-import numpy as np
-from fastapi import Request
-import joblib
 
 #router imports
 from handlers.upload import router as upload_router
