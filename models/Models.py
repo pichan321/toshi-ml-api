@@ -7,6 +7,7 @@ class Models(Base):
     id = Column(String(100), primary_key=True)
     name = Column(String(100), unique=False)
     description = Column(String(500))
+    detail = Column(String)
     model_type = Column(String(100))
     model_subtype = Column(String(100))
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow) 
